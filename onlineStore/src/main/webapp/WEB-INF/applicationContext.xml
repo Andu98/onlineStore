@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security.xsd http://www.springframework.org/schema/webflow-config http://www.springframework.org/schema/webflow-config/spring-webflow-config.xsd"
+       xmlns:security="http://www.springframework.org/schema/security"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.springframework.org/schema/beans"
+       xmlns:webflow-config="http://www.springframework.org/schema/webflow-config">
+ <!--datele din H2-->
+    <bean id="dataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+        <property name="driverClassName" value="org.h2.Driver" />
+        <property name="url" value="jdbc:h2:tcp://localhost/~/test" />
+        <property name="username" value="sa" />
+        <property name="password" value="" />
+    </bean>
+
+    <!-- sessionFactory gestioneaza datele -->
+    <bean id="sessionFactory" class="org.springframework.orm.hibernate4.LocalSessionFactoryBean" >
+        <property name="dataSource" ref="dataSource"></property>
+        <property name="hibernateProperties">
+            <props>
+                <!-- dialect specifica tipul bazei de date -->
+                <prop key="hibernate.dialect">org.hibernate.dialect.H2Dialect</prop>
+                <!-- creaza un sql DLL update script -->
+                <prop key="hibernate.hbm2ddl.auto">update</prop>
+                <prop key="hibernate.show_sql">true</prop>
+                <prop key="hibernate.format_sql">true</prop>
+            </props>
+        </property>
+        <property name="packagesToScan">
+            <list>
+                <value>com.onlineStore</value>
+            </list>
+        </property>
+    </bean>
+
+    <bean id="transactionManager" class="org.springframework.orm.hibernate4.HibernateTransactionManager">
+        <property name="sessionFactory" ref="sessionFactory" />
+    </bean>
+
+    <bean id ="multipartResolver" class ="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+        <property name="maxUploadSize" value="10485760000"/>
+    </bean>
+    <!-- Securitate -->
+
+    <security:http auto-config="true">
+
+    <security:intercept-url access="ROLE_ADMIN" pattern="/admin/**"/>
+    <security:intercept-url access="ROLE_USER" pattern="/customer/**"/>
+
+    <security:form-login password-parameter="password" username-parameter="username" authentication-failure-url="/login?error" default-target-url="/product/productList/all" login-page="/login"/>
+
+    <security:logout logout-success-url="/login?logout"/>
+
+</security:http>
+    <security:authentication-manager>
+    <security:authentication-provider>
+    <security:jdbc-user-service users-by-username-query="SELECT username, password, enabled FROM users WHERE username = ?" authorities-by-username-query="SELECT username, authority From authorities WHERE username = ?" data-source-ref="dataSource"/>
+</security:authentication-provider>
+</security:authentication-manager>
+    
+    <webflow-config:flow-executor id="flowExecutor" flow-registry="flowRegistry" />
+    <webflow-config:flow-registry id="flowRegistry" base-path="/WEB-INF/flows">
+        <webflow-config:flow-location path="/checkout/checkout-flow.xml" id="checkout"/>
+    </webflow-config:flow-registry>
+
+    <bean id ="flowHandlerMapping" class="org.springframework.webflow.mvc.servlet.FlowHandlerMapping">
+        <property name="flowRegistry" ref="flowRegistry"/>
+    </bean>
+
+    <bean id="flowHandlerAdapter" class="org.springframework.webflow.mvc.servlet.FlowHandlerAdapter">
+        <property name="flowExecutor" ref="flowExecutor"/>
+    </bean>
+
+</beans>
